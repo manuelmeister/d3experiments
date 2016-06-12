@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+    .country {
+        fill: #085698;
+    }
+
+    .canton-boundaries {
+        fill: none;
+        stroke: #fff;
+        stroke-width: 1;
+    }
+
+    .municipality-boundaries {
+        fill: none;
+        stroke: #fff;
+        stroke-width: .3;
+    }
+
+    .lakes {
+        fill: #fff;
+    }
+
+    .population {
+        fill: #de0030;
+    }
+
+    .district-content {
+        font: 20px sans-serif;
+    }
+
+</style>
+<body>
+<svg class="chart"></svg>
+<div class="district-content"></div>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script>
+
+    var width = 960,
+            height = 500;
+
+    var path = d3.geo.path()
+            .projection(null);
+
+    var svg = d3.select("svg.chart")
+            .attr("width", width)
+            .attr("height", height);
+
+    var scale = d3.scale.linear()
+            .range([5, 42]);
+
+    d3.json("ch.json", function(error, ch) {
+
+
+        svg.append("path")
+                .datum(topojson.feature(ch, ch.objects.country))
+                .attr("class", "country")
+                .style("pointer-events","none")
+                .attr("d", path);
+
+        d3.csv("data.csv", type, function (error, data) {
+
+            scale.domain([0, d3.max(data, function(d) { return d.value; })])
+
+            var canton = svg.append("g")
+                    .selectAll("path")
+                    .data(topojson.feature(ch, ch.objects.cantons, function(a, b) { return a !== b; }).features)
+                    .enter().append("path")
+                    .attr("class", "canton-boundaries")
+                    .style("pointer-events","none")
+                    .attr("d", path)
+                    .each(function (d,i) {
+                        var canton = data.filter(function (c) {
+                            return c.canton == d.properties.abbr;
+                        })[0];
+                        var center = path.centroid(d);
+                        var radius = scale(canton.value);
+                        var circle = svg.append("circle").attr("r", radius );
+                        circle.attr("class", "population")
+                                .attr("cx", center[0])
+                                .attr("cy", center[1]);
+
+                        circle.on("mouseenter", function () {
+                            var circle = d3.select(this);
+                            circle.transition().duration(420).attr("r",radius * 1.05 + 10);
+                            d3.select(".district-content").html(d.properties.name);
+                        }).on("mouseleave", function () {
+                            var circle = d3.select(this);
+                            circle.transition().duration(820).delay(520).attr("r",radius ).each( 'end',function(){
+                                d3.select(".district-content").html("");
+                            });
+                        })
+                    });
+
+            svg.append("path")
+                    .datum(topojson.feature(ch, ch.objects.lakes, function (a, b) {return a !== b;}))
+                    .attr("class", "lakes")
+                    .style("pointer-events","none")
+                    .attr("d", path);
+        });
+
+
+//        svg.append("path")
+//                .datum(topojson.mesh(ch, ch.objects.districts))
+//                .attr("class", "municipality-boundaries")
+//                .attr("class", "municipality-boundaries")
+//                .attr("d", path)
+//                .on('click',function(d,i){
+//                    testtingr(d,i);
+//                });
+
+//        svg.append("g")
+//                .selectAll("path")
+//                .data(topojson.feature(ch, ch.objects.districts).features).enter().append("path")
+//                .attr("class", "municipality-boundaries")
+//                .attr("data-id", function(d){ return d.id; })
+//                .attr("d", path);
+
+    });
+
+    function type(d) {
+        d.value = +d.value;
+        return d;
+    }
+
+</script>
